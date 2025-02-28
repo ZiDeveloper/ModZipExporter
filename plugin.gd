@@ -3,17 +3,26 @@ extends EditorPlugin
 
 var dock: Control
 var dockBtn : Button
+var projectSelect: OptionButton
 var dirline: LineEdit
 var fileline: LineEdit
 var progressBar: ProgressBar
 var progressLabel: Label
 var currentLabel: Label
+var detectedProjects: Array[String]
 
 func _enter_tree() -> void:
 	dock = VBoxContainer.new()
 	
 	var inputBox = HBoxContainer.new()
 	dock.add_child(inputBox)
+	
+	projectSelect = OptionButton.new()
+	projectSelect.item_selected.connect(func(index: int):
+		dirline.text = detectedProjects[index]
+		fileline.text = detectedProjects[index].get_file() + ".zip"
+		)
+	inputBox.add_child(projectSelect)
 
 	dirline = LineEdit.new()
 	dirline.placeholder_text = "res://mods/MyMod"
@@ -62,21 +71,39 @@ func _enter_tree() -> void:
 	currentLabel = Label.new()
 	currentLabel.text = "Select mod folder, enter zip name and press Export!"
 	dock.add_child(currentLabel)
-
+	
+	scanProjects()
+	
 	dockBtn = add_control_to_bottom_panel(dock, "Mod")
+
+func scanProjects():
+	projectSelect.clear()
+	detectedProjects.clear()
+	
+	for d in DirAccess.get_directories_at("res://"):
+		if FileAccess.file_exists(d.path_join("mod.txt")):
+			detectedProjects.append("res://".path_join(d))
+			projectSelect.add_item(d.trim_prefix("res://"))
+	
+	if projectSelect.item_count > 0:
+		projectSelect.item_selected.emit(0)
 
 var zipPaths = []
 var customResourceHash = ""
-var files = []
+var files: Array[String] = []
 func exportZip():
 	currentLabel.modulate = Color.WHITE
 
 	var dir = dirline.text
 	var out = fileline.text
+	var cfg = dir.path_join("mod.txt")
 
 	customResourceHash = DirAccess.get_directories_at("res://.godot/exported")[0]
 	files = []
 	collectFiles(dir)
+	
+	var modcfg = ConfigFile.new()
+	modcfg.load(cfg)
 
 	zipPaths = []
 	var zip = ZIPPacker.new()
@@ -91,9 +118,20 @@ func exportZip():
 		progressBar.max_value = files.size()
 		progressBar.value = i
 		await get_tree().create_timer(0.01).timeout
-		addFile(zip, f)
+		
+		if f == cfg:
+			zipAddFile(zip, f, "mod.txt")
+		else:
+			addFile(zip, f)
 		i += 1
-
+	
+	var remapCfg = ConfigFile.new()
+	
+	for src in modcfg.get_section_keys("override"):
+		var override = modcfg.get_value("override", src)
+		remapCfg.set_value("remap", "path", override)
+		zipAddBuf(zip, src + ".remap", remapCfg.encode_to_text().to_utf8_buffer())
+	
 	zip.close()
 	currentLabel.text = "Done!"
 	currentLabel.modulate = Color.LIME
@@ -101,7 +139,8 @@ func exportZip():
 
 func collectFiles(dir: String):
 	for d in DirAccess.get_directories_at(dir):
-		collectFiles(dir.path_join(d))
+		if not d.ends_with(".git"):
+			collectFiles(dir.path_join(d))
 	for f in DirAccess.get_files_at(dir):
 		if dir.ends_with(".import"): continue
 		files.append(dir.path_join(f))
@@ -158,12 +197,15 @@ func zipAddBuf(zip: ZIPPacker, path: String, buf: PackedByteArray):
 
 	zipPaths.append(path)
 
-func zipAddFile(zip: ZIPPacker, path: String):
+func zipAddFile(zip: ZIPPacker, path: String, dest: String = ""):
 	path = path.trim_prefix("res://")
 	if path in zipPaths:
 		return
 
-	zip.start_file(path)
+	if dest == "":
+		dest = path
+
+	zip.start_file(dest)
 	var fa = FileAccess.open("res://" + path, FileAccess.ModeFlags.READ)
 	zip.write_file(fa.get_buffer(fa.get_length()))
 	fa.close()
