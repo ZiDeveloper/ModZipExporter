@@ -108,6 +108,7 @@ func exportZip():
 	var out = fileline.text
 
 	var modCfgPath = null
+	var overrideCfgPath = dir.path_join("override.cfg")
 	if FileAccess.file_exists(dir.path_join("mod.txt")):
 		modCfgPath = dir.path_join("mod.txt")
 
@@ -129,7 +130,9 @@ func exportZip():
 		progressBar.value = i
 		await get_tree().create_timer(0.01).timeout
 		
-		if f != modCfgPath:
+		if f == overrideCfgPath:
+			zipAddFile(zip, f, "override.cfg")
+		elif f != modCfgPath:
 			addFile(zip, f)
 			
 		i += 1
