@@ -17,6 +17,11 @@ func _enter_tree() -> void:
 	var inputBox = HBoxContainer.new()
 	dock.add_child(inputBox)
 	
+	var projectScanBtn = Button.new()
+	projectScanBtn.text = "Scan"
+	projectScanBtn.pressed.connect(func(): scanProjects())
+	inputBox.add_child(projectScanBtn)
+
 	projectSelect = OptionButton.new()
 	projectSelect.item_selected.connect(func(index: int):
 		dirline.text = detectedProjects[index]
