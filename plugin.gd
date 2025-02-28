@@ -84,14 +84,19 @@ func _enter_tree() -> void:
 func scanProjects():
 	projectSelect.clear()
 	detectedProjects.clear()
-	
-	for d in DirAccess.get_directories_at("res://"):
-		if FileAccess.file_exists(d.path_join("mod.txt")):
-			detectedProjects.append("res://".path_join(d))
-			projectSelect.add_item(d.trim_prefix("res://"))
-	
+
+	scanDirForProjects("res://")
+
 	if projectSelect.item_count > 0:
 		projectSelect.item_selected.emit(0)
+	
+func scanDirForProjects(dir):
+	for d in DirAccess.get_directories_at(dir):
+		if FileAccess.file_exists(dir.path_join(d).path_join("mod.txt")):
+			detectedProjects.append(dir.path_join(d))
+			projectSelect.add_item(d)
+		else:
+			scanDirForProjects(dir.path_join(d))
 
 var zipPaths = []
 var customResourceHash = ""
