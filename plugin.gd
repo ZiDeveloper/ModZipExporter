@@ -106,14 +106,14 @@ func exportZip():
 
 	var dir = dirline.text
 	var out = fileline.text
-	var cfg = dir.path_join("mod.txt")
+
+	var modCfgPath = null
+	if FileAccess.file_exists(dir.path_join("mod.txt")):
+		modCfgPath = dir.path_join("mod.txt")
 
 	customResourceHash = DirAccess.get_directories_at("res://.godot/exported")[0]
 	files = []
 	collectFiles(dir)
-	
-	var modcfg = ConfigFile.new()
-	modcfg.load(cfg)
 
 	zipPaths = []
 	var zip = ZIPPacker.new()
@@ -129,18 +129,26 @@ func exportZip():
 		progressBar.value = i
 		await get_tree().create_timer(0.01).timeout
 		
-		if f == cfg:
-			zipAddFile(zip, f, "mod.txt")
-		else:
+		if f != modCfgPath:
 			addFile(zip, f)
+			
 		i += 1
 	
-	var remapCfg = ConfigFile.new()
-	
-	for src in modcfg.get_section_keys("override"):
-		var override = modcfg.get_value("override", src)
-		remapCfg.set_value("remap", "path", override)
-		zipAddBuf(zip, src + ".remap", remapCfg.encode_to_text().to_utf8_buffer())
+	if modCfgPath:
+		var modcfg = ConfigFile.new()
+		modcfg.load(modCfgPath)
+
+		# Store the remaps defined in the mod.txt override section
+		for src in modcfg.get_section_keys("override"):
+			var remapCfg = ConfigFile.new()
+			var override = modcfg.get_value("override", src)
+			remapCfg.set_value("remap", "path", override)
+			zipAddBuf(zip, src + ".remap", remapCfg.encode_to_text().to_utf8_buffer())
+		
+		# Remove the override section
+		modcfg.erase_section("override")
+		# Store the mod.txt
+		zipAddBuf(zip, "mod.txt", modcfg.encode_to_text().to_utf8_buffer())
 	
 	zip.close()
 	currentLabel.text = "Done!"
