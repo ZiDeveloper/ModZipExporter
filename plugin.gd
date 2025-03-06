@@ -168,6 +168,7 @@ func collectFiles(dir: String):
 		if not d.ends_with(".git"):
 			collectFiles(dir.path_join(d))
 	for f in DirAccess.get_files_at(dir):
+		if f == "mod.txt": continue
 		if dir.ends_with(".import"): continue
 		files.append(dir.path_join(f))
 
