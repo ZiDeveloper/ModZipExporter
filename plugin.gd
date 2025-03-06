@@ -122,6 +122,9 @@ func exportZip():
 	var zip = ZIPPacker.new()
 	zip.open("res://mods/" + out)
 	
+	var classList = ProjectSettings.get_global_class_list()
+	var modClassList : Array[Dictionary] = []
+
 	var i = 1
 	for f in files:
 		currentLabel.text = "Exporting " + f + "..."
@@ -132,12 +135,24 @@ func exportZip():
 		progressBar.value = i
 		await get_tree().create_timer(0.01).timeout
 		
+		for c in classList:
+			if c.path == f:
+				modClassList.append(c)
+				break
+
 		if f == overrideCfgPath:
 			zipAddFile(zip, f, "override.cfg")
 		elif f != modCfgPath:
 			addFile(zip, f)
 			
 		i += 1
+
+	if modClassList.size():
+		currentLabel.text = "Writing class list..."
+		await get_tree().create_timer(0.01).timeout
+		var classListCfg = ConfigFile.new()
+		classListCfg.set_value("", "list", modClassList)
+		zipAddBuf(zip, ".godot/global_script_class_cache.cfg", classListCfg.encode_to_text().to_utf8_buffer())
 
 	currentLabel.text = "Writing mod.txt..."
 	await get_tree().create_timer(0.01).timeout
