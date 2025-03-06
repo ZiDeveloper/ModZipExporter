@@ -138,21 +138,23 @@ func exportZip():
 			addFile(zip, f)
 			
 		i += 1
-	
+
+	currentLabel.text = "Writing mod.txt..."
+	await get_tree().create_timer(0.01).timeout
 	if modCfgPath:
 		var modcfg = ConfigFile.new()
 		modcfg.load(modCfgPath)
 
-		# Store the remaps defined in the mod.txt override section
-		for src in modcfg.get_section_keys("override"):
+		# Store the remaps defined in the mod.txt remaps section
+		for src in modcfg.get_section_keys("remaps"):
 			var remapCfg = ConfigFile.new()
-			var override = modcfg.get_value("override", src)
+			var override = modcfg.get_value("remaps", src)
 			override = compiledRemaps.get(override, override)
 			remapCfg.set_value("remap", "path", override)
 			zipAddBuf(zip, src + ".remap", remapCfg.encode_to_text().to_utf8_buffer())
 		
-		# Remove the override section
-		modcfg.erase_section("override")
+		# Remove the remaps section
+		modcfg.erase_section("remaps")
 		# Store the mod.txt
 		zipAddBuf(zip, "mod.txt", modcfg.encode_to_text().to_utf8_buffer())
 	
