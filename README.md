@@ -1,3 +1,5 @@
+# !!! THIS IS A FORK !!!
+
 # Mod Zip Exporter  
 Exports the selected folder to a `.zip` for use with mods.  
 Exports the imported assets and converts text resources to binary resources.  
