@@ -100,9 +100,7 @@ func scan_recursive(dir_path: String) -> void:
 		else:
 			scan_recursive(dir_path.path_join(dir_name))
 
-func collect_files(dir_path: String) -> Array[String]:
-	var return_col : Array[String] = []
-	
+func collect_files(dir_path: String):
 	for dir_name in DirAccess.get_directories_at(dir_path):
 		if not dir_name.ends_with(".git"):
 			collect_files(dir_path.path_join(dir_name))
@@ -114,9 +112,7 @@ func collect_files(dir_path: String) -> Array[String]:
 		# checking the directory name?
 		# NOTE: I have changed this to file_name for now
 		if (file_name.ends_with(".import")): continue
-		return_col.append(dir_path.path_join(file_name))
-
-	return return_col
+		files_col.append(dir_path.path_join(file_name))
 
 # Stores an array of bytes as a file in a given ZIP file at the 
 # given file path and remembers the file been stored already.
@@ -224,6 +220,7 @@ func export_project_as_zip(ignore_mod_txt: bool = false) -> void:
 	compiled_remaps.clear()
 	custom_resource_hash = DirAccess.get_directories_at("res://.godot/exported")[0]
 
+	files_col.clear()
 	files_col = collect_files(mod_path)
 
 	# Create ZIP
