@@ -221,7 +221,7 @@ func export_project_as_zip(ignore_mod_txt: bool = false) -> void:
 	custom_resource_hash = DirAccess.get_directories_at("res://.godot/exported")[0]
 
 	files_col.clear()
-	files_col = collect_files(mod_path)
+	collect_files(mod_path)
 
 	# Create ZIP
 	var zip_file : ZIPPacker = ZIPPacker.new()
