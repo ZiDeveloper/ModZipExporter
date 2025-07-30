@@ -16,6 +16,9 @@ var progress_label : Label
 var status_label : Label
 var progress_bar : ProgressBar
 
+var open_export_folder_checkbox : CheckBox
+var convert_text_resources_checkbox : CheckBox
+
 var detected_projects_col : Array[String] = []
 var files_col : Array[String] = []
 var stored_zip_paths_col : Array[String] = []
@@ -49,6 +52,9 @@ func _enter_tree() -> void:
 	status_label = main_panel_instance.get_node("HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/StatusLabel")
 
 	progress_bar = main_panel_instance.get_node("HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/ProgressBar")
+
+	open_export_folder_checkbox = main_panel_instance.get_node("HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/OpenExportFolderCheckbox")
+	convert_text_resources_checkbox = main_panel_instance.get_node("HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/ConvertTextResourcesCheckbox")
 
 	project_selector = main_panel_instance.get_node("HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/HBoxContainer/ProjectSelector")
 	project_selector.item_selected.connect(
@@ -294,8 +300,8 @@ func export_project_as_zip(ignore_mod_txt: bool = false) -> void:
 	status_label.text = "Status: Done!"
 	status_label.modulate = Color.LIME
 
-	# TODO: toggleable option for opening folder after export
-	OS.shell_show_in_file_manager(ProjectSettings.globalize_path("res://mods/" + zip_file_name))
+	if open_export_folder_checkbox.pressed:
+		OS.shell_show_in_file_manager(ProjectSettings.globalize_path("res://mods/" + zip_file_name))
 
 # $-----
 
