@@ -9,6 +9,7 @@ var main_panel_instance : Node
 
 var scan_button : Button
 var export_button : Button
+var open_mod_folder : Button
 var project_selector : OptionButton
 var mod_path_line_edit : LineEdit
 var export_name_line_edit : LineEdit
@@ -25,6 +26,13 @@ var stored_zip_paths_col : Array[String] = []
 
 var custom_resource_hash : String = ""
 var compiled_remaps : Dictionary = {}
+
+var meta_files : Array[String] = [
+	"changelog.txt.yaml",
+	"README.md",
+	"LICENCE.md",
+	"CREDITS.md"
+]
 
 # Main Scene Plugins
 # Link: https://docs.godotengine.org/en/latest/tutorials/plugins/editor/making_main_screen_plugins.html
@@ -44,6 +52,9 @@ func _enter_tree() -> void:
 
 	export_button = main_panel_instance.get_node("HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/ExportButton")
 	export_button.connect("pressed", export_project_as_zip)
+	
+	open_mod_folder = main_panel_instance.get_node("HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/OpenModFolderButton")
+	open_mod_folder.connect("pressed", on_open_mod_folder)
 
 	mod_path_line_edit = main_panel_instance.get_node("HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/ModPathLineEdit")
 	export_name_line_edit = main_panel_instance.get_node("HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/ExportNameLineEdit")
@@ -85,6 +96,10 @@ func _get_plugin_icon() -> Texture2D:
 
 # $-----
 
+func on_open_mod_folder() -> void:
+	info("Opening export folder...")
+	OS.shell_show_in_file_manager(ProjectSettings.globalize_path("res://mods/%s" % export_name_line_edit.text))
+
 func scan_for_projects() -> void:
 	info("Scanning for mod projects...")
 	detected_projects_col.clear()
@@ -112,12 +127,17 @@ func collect_files(dir_path: String):
 			collect_files(dir_path.path_join(dir_name))
 
 	for file_name in DirAccess.get_files_at(dir_path):
-		if (file_name == "mod.txt"): continue
-		# TODO: This line need to be check of rightness. Is it not
+		# NOTE: Files listed in 'meta_files' have to be manually added
+		# into the zip file.
+		if (file_name in meta_files): continue
+
+		# TODO: This line needs to be checked of rightness. Isn't it
 		# supposed to ignore files ending on '.import' rather than
 		# checking the directory name?
-		# NOTE: I have changed this to file_name for now
+		# NOTE: I have changed this to file_name for now.
 		if (file_name.ends_with(".import")): continue
+		if (file_name == "mod.txt"): continue
+		
 		files_col.append(dir_path.path_join(file_name))
 
 # Stores an array of bytes as a file in a given ZIP file at the 
@@ -172,8 +192,8 @@ func add_mod_file_to_zip(zip: ZIPPacker, file_path: String) -> void:
 		import_file_access.close()
 
 		# Store dest files
-		if import_config.has_section_key("deps", "dest_files"):
-			for dest_file_path in import_config.get_value("deps", "dest-files"):
+		if import_config.has_section("deps") and import_config.has_section_key("deps", "dest_files"):
+			for dest_file_path in import_config.get_value("deps", "dest_files", null):
 				store_file_in_zip(zip, dest_file_path)
 		
 		# Store the .import file (contains import settings and dest file paths)
@@ -209,6 +229,7 @@ func export_project_as_zip(ignore_mod_txt: bool = false) -> void:
 
 	var mod_path = mod_path_line_edit.text
 	var zip_file_name = export_name_line_edit.text
+	info("[color=GREEN]Exporting Project '%s' as '%s'...[/color]" % [mod_path, zip_file_name])
 
 	# Check for 'mod.txt'
 	# NOTE: This part differs from the original implementation. Before this function
@@ -224,8 +245,10 @@ func export_project_as_zip(ignore_mod_txt: bool = false) -> void:
 		return
 	
 	compiled_remaps.clear()
+	stored_zip_paths_col.clear()
 	custom_resource_hash = DirAccess.get_directories_at("res://.godot/exported")[0]
 
+	info("Collecting Files...")
 	files_col.clear()
 	collect_files(mod_path)
 
@@ -237,6 +260,7 @@ func export_project_as_zip(ignore_mod_txt: bool = false) -> void:
 	var global_class_list = ProjectSettings.get_global_class_list()
 	var mod_class_list : Array[Dictionary] = []
 
+	info("Storing Collected Files...")
 	# Write collected files
 	var file_index = 1
 	for mod_file_path in files_col:
@@ -272,6 +296,7 @@ func export_project_as_zip(ignore_mod_txt: bool = false) -> void:
 		class_list_config.set_value("", "list", mod_class_list)
 		store_buffer_in_zip(zip_file, ".godot/global_script_class_cache.cfg", class_list_config.encode_to_text().to_utf8_buffer())
 
+	info("Writing Mod TXT...")
 	# Write mod.txt
 	status_label.text = "Status: Writing mod.txt..."
 	await get_tree().create_timer(0.01).timeout
@@ -295,21 +320,30 @@ func export_project_as_zip(ignore_mod_txt: bool = false) -> void:
 		# Store the 'mod.txt'
 		store_buffer_in_zip(zip_file, "mod.txt", mod_config_file.encode_to_text().to_utf8_buffer())
 
+	# Store files listed in 'meta_files' manually
+	status_label.text = "Status: Meta Files..."
+	for meta_file in meta_files:
+		if (FileAccess.file_exists(mod_path.path_join(meta_file))):
+			info("Storing meta file '%s'..." % meta_file)
+			store_file_in_zip(zip_file, mod_path.path_join(meta_file), meta_file)
+
 	# Close ZIP
 	zip_file.close()
 	status_label.text = "Status: Done!"
 	status_label.modulate = Color.LIME
+	info("[color=GREEN]Done![/color]")
 
-	if open_export_folder_checkbox.pressed:
-		OS.shell_show_in_file_manager(ProjectSettings.globalize_path("res://mods/" + zip_file_name))
+	if open_export_folder_checkbox.button_pressed:
+		info("Opening export folder...")
+		OS.shell_show_in_file_manager(ProjectSettings.globalize_path("res://mods/%s" % zip_file_name))
 
 # $-----
 
 func info(text: String) -> void:
-	print("[INFO] %s" % text)
+	print_rich("[color=#33aabb][INFO: ModExporter] %s[/color]" % text)
 
 func warning(text: String) -> void:
-	push_warning("[WARNING] %s" % text)
+	print_rich("[color=YELLOW][WARNING: ModExporter] %s[/color]" % text)
 
 func error(text: String) -> void:
-	push_error("[ERROR] %s" % text)
+	print_rich("[color=RED][ERROR: ModExporter] %s[/color]" % text)

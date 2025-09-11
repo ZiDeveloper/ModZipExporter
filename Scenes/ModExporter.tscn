@@ -59,10 +59,9 @@ layout_mode = 2
 placeholder_text = "res://mods/MyMod"
 editable = false
 
-[node name="SelectModFolderButton" type="Button" parent="HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer"]
+[node name="OpenModFolderButton" type="Button" parent="HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer"]
 layout_mode = 2
-disabled = true
-text = "Select Mod Folder"
+text = "Open Mods Folder"
 
 [node name="Padding4" type="Control" parent="HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer"]
 custom_minimum_size = Vector2(0, 16)
@@ -113,6 +112,7 @@ text = "Open folder after export"
 
 [node name="ConvertTextResourcesCheckbox" type="CheckBox" parent="HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer"]
 layout_mode = 2
+disabled = true
 text = "Convert text resources to binary"
 
 [node name="VBox_Left" type="VBoxContainer" parent="HBox_Main"]
