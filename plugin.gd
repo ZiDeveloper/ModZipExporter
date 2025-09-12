@@ -27,13 +27,6 @@ var stored_zip_paths_col : Array[String] = []
 var custom_resource_hash : String = ""
 var compiled_remaps : Dictionary = {}
 
-var meta_files : Array[String] = [
-	"changelog.txt.yaml",
-	"README.md",
-	"LICENCE.md",
-	"CREDITS.md"
-]
-
 # Main Scene Plugins
 # Link: https://docs.godotengine.org/en/latest/tutorials/plugins/editor/making_main_screen_plugins.html
 
@@ -98,7 +91,7 @@ func _get_plugin_icon() -> Texture2D:
 
 func on_open_mod_folder() -> void:
 	info("Opening export folder...")
-	OS.shell_show_in_file_manager(ProjectSettings.globalize_path("res://mods/%s" % export_name_line_edit.text))
+	OS.shell_open(ProjectSettings.globalize_path(SCAN_DIR_PATH))
 
 func scan_for_projects() -> void:
 	info("Scanning for mod projects...")
@@ -121,22 +114,21 @@ func scan_recursive(dir_path: String) -> void:
 		else:
 			scan_recursive(dir_path.path_join(dir_name))
 
+# $-----
+
+# Collect files of a given mod project directory
 func collect_files(dir_path: String):
+	# For each folder in mod project folder
 	for dir_name in DirAccess.get_directories_at(dir_path):
-		if not dir_name.ends_with(".git"):
-			collect_files(dir_path.path_join(dir_name))
+		if dir_name.ends_with(".git"): continue
+		elif dir_name.begins_with("@"): continue
+
+		collect_files(dir_path.path_join(dir_name))
 
 	for file_name in DirAccess.get_files_at(dir_path):
-		# NOTE: Files listed in 'meta_files' have to be manually added
-		# into the zip file.
-		if (file_name in meta_files): continue
-
-		# TODO: This line needs to be checked of rightness. Isn't it
-		# supposed to ignore files ending on '.import' rather than
-		# checking the directory name?
-		# NOTE: I have changed this to file_name for now.
 		if (file_name.ends_with(".import")): continue
-		if (file_name == "mod.txt"): continue
+		elif (file_name == "mod.txt"): continue
+		elif (file_name == ".gitignore"): continue
 		
 		files_col.append(dir_path.path_join(file_name))
 
@@ -229,6 +221,7 @@ func export_project_as_zip(ignore_mod_txt: bool = false) -> void:
 
 	var mod_path = mod_path_line_edit.text
 	var zip_file_name = export_name_line_edit.text
+	var mod_zip_file_path = "res://mods/%s" % zip_file_name
 	info("[color=GREEN]Exporting Project '%s' as '%s'...[/color]" % [mod_path, zip_file_name])
 
 	# Check for 'mod.txt'
@@ -252,9 +245,14 @@ func export_project_as_zip(ignore_mod_txt: bool = false) -> void:
 	files_col.clear()
 	collect_files(mod_path)
 
+	# Delete old zip file
+	if FileAccess.file_exists(mod_zip_file_path):
+		DirAccess.open("res://mods/").remove(zip_file_name)
+		await get_tree().create_timer(0.1).timeout
+
 	# Create ZIP
 	var zip_file : ZIPPacker = ZIPPacker.new()
-	zip_file.open("res://mods/%s" % zip_file_name)
+	zip_file.open(mod_zip_file_path)
 
 	# TODO: Get a better understanding what this is for
 	var global_class_list = ProjectSettings.get_global_class_list()
@@ -320,12 +318,14 @@ func export_project_as_zip(ignore_mod_txt: bool = false) -> void:
 		# Store the 'mod.txt'
 		store_buffer_in_zip(zip_file, "mod.txt", mod_config_file.encode_to_text().to_utf8_buffer())
 
-	# Store files listed in 'meta_files' manually
+	# Store files in @meta
 	status_label.text = "Status: Meta Files..."
-	for meta_file in meta_files:
-		if (FileAccess.file_exists(mod_path.path_join(meta_file))):
-			info("Storing meta file '%s'..." % meta_file)
-			store_file_in_zip(zip_file, mod_path.path_join(meta_file), meta_file)
+	files_col.clear()
+	collect_files(mod_path.path_join("@meta"))
+	for meta_file_path in files_col:
+		var dest_path = meta_file_path.trim_prefix(mod_path.path_join("@meta/"))
+		info("Storing meta file '%s' in '%s'..." % [meta_file_path, dest_path])
+		store_file_in_zip(zip_file, meta_file_path, dest_path)
 
 	# Close ZIP
 	zip_file.close()
@@ -335,7 +335,7 @@ func export_project_as_zip(ignore_mod_txt: bool = false) -> void:
 
 	if open_export_folder_checkbox.button_pressed:
 		info("Opening export folder...")
-		OS.shell_show_in_file_manager(ProjectSettings.globalize_path("res://mods/%s" % zip_file_name))
+		OS.shell_show_in_file_manager(ProjectSettings.globalize_path(mod_zip_file_path))
 
 # $-----
 
