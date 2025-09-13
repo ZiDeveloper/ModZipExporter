@@ -80,8 +80,33 @@ placeholder_text = "Mod Name (e.g., my-mod.zip)"
 layout_mode = 2
 text = "Export as ZIP"
 
-[node name="Padding5" type="Control" parent="HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer"]
-custom_minimum_size = Vector2(0, 16)
+[node name="VBoxContainer" type="VBoxContainer" parent="HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PackProjectButton" type="Button" parent="HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/VBoxContainer"]
+layout_mode = 2
+text = "Pack Project as ZIP"
+
+[node name="Padding" type="Control" parent="HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 8)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="HBoxContainer" type="HBoxContainer" parent="HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="ExcludeGitCheckbox" type="CheckBox" parent="HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+button_pressed = true
+text = "Exclude .git"
+
+[node name="PrintOutputCheckbox" type="CheckBox" parent="HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+text = "Show output"
+
+[node name="Padding_2" type="Control" parent="HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 size_flags_vertical = 3
 

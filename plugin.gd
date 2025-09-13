@@ -10,6 +10,7 @@ var main_panel_instance : Node
 var scan_button : Button
 var export_button : Button
 var open_mod_folder : Button
+var pack_project_button : Button
 var project_selector : OptionButton
 var mod_path_line_edit : LineEdit
 var export_name_line_edit : LineEdit
@@ -19,6 +20,8 @@ var progress_bar : ProgressBar
 
 var open_export_folder_checkbox : CheckBox
 var convert_text_resources_checkbox : CheckBox
+var exclude_git_checkbox : CheckBox
+var show_output_checkbox : CheckBox
 
 var detected_projects_col : Array[String] = []
 var files_col : Array[String] = []
@@ -59,12 +62,17 @@ func _enter_tree() -> void:
 
 	open_export_folder_checkbox = main_panel_instance.get_node("HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/OpenExportFolderCheckbox")
 	convert_text_resources_checkbox = main_panel_instance.get_node("HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/ConvertTextResourcesCheckbox")
+	exclude_git_checkbox = main_panel_instance.get_node("HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/VBoxContainer/HBoxContainer/ExcludeGitCheckbox")
+	show_output_checkbox = main_panel_instance.get_node("HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/VBoxContainer/HBoxContainer/PrintOutputCheckbox")
 
 	project_selector = main_panel_instance.get_node("HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/HBoxContainer/ProjectSelector")
 	project_selector.item_selected.connect(
 		func(index: int):
 			mod_path_line_edit.text = detected_projects_col[index]
 			export_name_line_edit.text = detected_projects_col[index].get_file() + ".zip")
+			
+	pack_project_button = main_panel_instance.get_node("HBox_Main/VBox_Right/HBoxContainer2/VBoxContainer/VBoxContainer/PackProjectButton")
+	pack_project_button.connect("pressed", on_pack_project_button)
 
 	# First Scan
 	scan_for_projects()
@@ -88,6 +96,72 @@ func _get_plugin_icon() -> Texture2D:
 	return get_editor_interface().get_base_control().get_theme_icon("ScriptExtend", "EditorIcons")
 
 # $-----
+
+func get_time_now_string():
+	var time_now = Time.get_datetime_dict_from_system()
+	var time_formatted = "%02d-%02d-%02d_%02d-%02d-%02d" % [
+		time_now["day"],
+		time_now["month"],
+		time_now["year"] % 100,
+		time_now["hour"],
+		time_now["minute"],
+		time_now["second"],
+	]
+	return time_formatted
+
+func on_pack_project_button() -> void:
+	status_label.modulate = Color.WHITE
+
+	var mod_path = mod_path_line_edit.text
+	var mod_zip_name = "%s.zip" % mod_path.split("/")[-1]
+	var mod_export_path = mod_path.path_join("@files").path_join(mod_zip_name)
+
+	if mod_path.is_empty():
+		status_label.modulate = Color.YELLOW
+		status_label.text = "Status: No project found"
+		warning("Could not pack project: Empty project path")
+		return
+	elif !DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(mod_path)):
+		status_label.modulate = Color.YELLOW
+		status_label.text = "Status: No project found"
+		warning("Could not pack project: Project path '%s' does not exists" % mod_path)
+		return
+	
+	# NOTE: Rename exiting file
+	if FileAccess.file_exists(ProjectSettings.globalize_path(mod_export_path)):
+		var dir_access = DirAccess.open(ProjectSettings.globalize_path(mod_export_path).get_base_dir())
+		var time_string = get_time_now_string()
+		dir_access.rename(mod_zip_name, "%s_%s.zip" % [mod_zip_name, time_string])
+		status_label.text = "Status: Renamed exiting packed file in @files..."
+		info("[color=GREEN]Renamed exiting packed file in @files...[/color]")
+		await get_tree().create_timer(1).timeout
+	
+	status_label.text = "Status: Packing..."
+	info("[color=GREEN]Packing '%s'...[/color]" % mod_export_path)
+	await get_tree().create_timer(1).timeout
+	
+	var output = []
+	var command = ''
+	command += 'cd "%s" &&' % ProjectSettings.globalize_path(mod_path)
+	if exclude_git_checkbox.button_pressed:
+		command += '7z a %s -mx0 * -xr!*.zip -xr!.git &&' % mod_zip_name
+	else:
+		command += '7z a %s -mx0 * -xr!*.zip &&' % mod_zip_name
+	command += 'move %s .\\@files\\ 2>NUL' % [mod_zip_name]
+	
+	var err = OS.execute("cmd.exe", ["/c", command], output, true)
+	if err != OK:
+		status_label.modulate = Color.RED
+		status_label.text = "Status: Packing failed see output."
+		error("Failed packing project as zip with status code (%d)" % [err])
+		return
+
+	status_label.modulate = Color.GREEN
+	status_label.text = "Status: Finished packing successfully."
+	info("[color=GREEN]Finished packing successfully[/color]")
+	if show_output_checkbox.button_pressed:
+		for line in output[0].split("\r\n"):
+			info("[color=WHITE]%s[/color]" % line)
 
 func on_open_mod_folder() -> void:
 	info("Opening export folder...")
